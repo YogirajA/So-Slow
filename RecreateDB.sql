@@ -46,7 +46,7 @@ ON [PRIMARY]
 
                     
 CREATE TABLE [dbo].[Posts](
-	[Id] [int] NOT NULL,
+	[Id] [int] NOT NULL IDENTITY(1,1),
 	[PostTypeId] [int] NULL,
 	[AcceptedAnswerId] [int] NULL,
 	[CreationDate] [datetime] NULL,
@@ -145,3 +145,63 @@ union all select
 union all select
 13, 'InformModerator'
 
+--set identity_insert Posts ON
+
+IF 0 = 0--INDEXES 
+  BEGIN 
+    SET ANSI_PADDING  OFF 
+
+    IF NOT EXISTS (SELECT * 
+                   FROM   dbo.sysindexes 
+                   WHERE  id = OBJECT_ID(N'[dbo].[Posts]') 
+                          AND name = N'IX_Posts_PostType') 
+      CREATE NONCLUSTERED INDEX [IX_Posts_PostType] ON [dbo].[Posts] ( 
+            [PostTypeId] ASC) 
+      ON [PRIMARY]  
+  END 
+
+IF 0 = 0--FULLTEXT  If installed turn this on
+  BEGIN 
+    IF (OBJECTPROPERTY(OBJECT_ID(N'[dbo].[Posts]'),'TableFullTextCatalogId') = 0) 
+      EXEC dbo.sp_fulltext_table 
+        @tabname = N'[dbo].[Posts]' , 
+        @action = N'create' , 
+        @keyname = N'PK_Posts' , 
+        @ftcat = N'PostFullText' 
+
+    DECLARE  @lcid INT 
+
+    SELECT @lcid = lcid 
+    FROM   MASTER.dbo.syslanguages 
+    WHERE  alias = N'English' 
+
+    EXEC dbo.sp_fulltext_column 
+      @tabname = N'[dbo].[Posts]' , 
+      @colname = N'Body' , 
+      @action = N'add' , 
+      @language = @lcid 
+
+   EXEC dbo.sp_fulltext_column 
+      @tabname = N'[dbo].[Posts]' , 
+      @colname = N'Tags' , 
+      @action = N'add' , 
+      @language = @lcid 
+
+    SELECT @lcid = lcid 
+    FROM   MASTER.dbo.syslanguages 
+    WHERE  alias = N'English' 
+
+    EXEC dbo.sp_fulltext_column 
+      @tabname = N'[dbo].[Posts]' , 
+      @colname = N'Title' , 
+      @action = N'add' , 
+      @language = @lcid 
+
+    EXEC dbo.sp_fulltext_table 
+      @tabname = N'[dbo].[Posts]' , 
+      @action = N'start_change_tracking' 
+
+    EXEC dbo.sp_fulltext_table 
+      @tabname = N'[dbo].[Posts]' , 
+      @action = N'start_background_updateindex' 
+  END 
